@@ -136,7 +136,7 @@ local function initialize()
         end
         spawn(function()
             while _G.Toggle do
-                clickAtPosition(950 / Camera.ViewportSize.X, 673 / Camera.ViewportSize.Y)
+                clickAtPosition(940 / Camera.ViewportSize.X, 675 / Camera.ViewportSize.Y)
                 wait(0.1)
                 
                 local rolledElement, textColor = checkSpinner()
