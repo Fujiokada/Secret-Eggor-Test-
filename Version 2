@@ -1,0 +1,172 @@
+_G.Toggle = true
+local VIM = game:GetService("VirtualInputManager")
+local Players = game:GetService("Players")
+local Camera = workspace.CurrentCamera
+local UIS = game:GetService("UserInputService")
+
+local whitelist = {
+    "Dragon",
+    "Dragon's Blade",
+    "Heaven's Wrath",
+    "Arc of the Elements",
+    "Time",
+    "Telekinesis",
+    "Necromancer",
+    "Destruction",
+    "Spectre",
+    "Acceleration",
+    "Vampire"
+}
+
+local rolledElements = {}
+local lastRolledElement = ""
+local guiInstance = nil
+local scrollingFrame = nil
+
+local function clickAtPosition(x, y)
+    local screenSize = Camera.ViewportSize
+    local absoluteX = screenSize.X * x
+    local absoluteY = screenSize.Y * y
+    
+    VIM:SendMouseButtonEvent(absoluteX, absoluteY, 0, true, nil, 0)
+    wait(0.1)
+    VIM:SendMouseButtonEvent(absoluteX, absoluteY, 0, false, nil, 0)
+end
+
+local function isWhitelisted(element)
+    for _, whitelistedElement in ipairs(whitelist) do
+        if string.find(element, whitelistedElement) then
+            return true
+        end
+    end
+    return false
+end
+
+local function checkSpinner()
+    local spinnerGui = Players.LocalPlayer.PlayerGui:WaitForChild("Spinner")
+    local nameOutline = spinnerGui:FindFirstChild("NameOutline", true)
+    local textLabel = nameOutline:FindFirstChild("TextLabel", true)
+    
+    if textLabel then
+        local spinnerText = textLabel.Text
+        return spinnerText:match("You got (.+)!") or "", textLabel.TextColor3
+    else
+        return "", nil
+    end
+end
+
+local function createGui()
+    local ScreenGui = Instance.new("ScreenGui")
+    local ScrollingFrame = Instance.new("ScrollingFrame")
+    local UIListLayout = Instance.new("UIListLayout")
+    local SearchBar = Instance.new("TextBox")
+    local UICornerScrollingFrame = Instance.new("UICorner")
+    local UICornerSearchBar = Instance.new("UICorner")
+
+    ScreenGui.Name = "ElementGui"
+    ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.DisplayOrder = 1000
+
+    ScrollingFrame.Parent = ScreenGui
+    ScrollingFrame.BackgroundColor3 = Color3.fromRGB(47, 47, 47) 
+    ScrollingFrame.BackgroundTransparency = 0.5
+    ScrollingFrame.Position = UDim2.new(0.75, 0, 0.8, 0)
+    ScrollingFrame.Size = UDim2.new(0.2, 0, 0.2, 0)
+    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 5, 0)
+    ScrollingFrame.ScrollBarThickness = 8
+    ScrollingFrame.ZIndex = 10
+    UICornerScrollingFrame.Parent = ScrollingFrame
+    UICornerScrollingFrame.CornerRadius = UDim.new(0, 10) 
+
+    UIListLayout.Parent = ScrollingFrame
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    SearchBar.Parent = ScreenGui
+    SearchBar.Size = UDim2.new(0.2, 0, 0, 30)
+    SearchBar.Position = UDim2.new(0.75, 0, 0.76, 0)
+    SearchBar.PlaceholderText = "Search Elements"
+    SearchBar.BackgroundTransparency = 0.5
+    SearchBar.BackgroundColor3 = Color3.fromRGB(47, 47, 47) 
+    SearchBar.TextColor3 = Color3.new(1, 1, 1)
+    SearchBar.ZIndex = 11
+    UICornerSearchBar.Parent = SearchBar
+    UICornerSearchBar.CornerRadius = UDim.new(0, 10) 
+
+    SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+        for _, child in ipairs(ScrollingFrame:GetChildren()) do
+            if child:IsA("TextLabel") then
+                if string.find(string.lower(child.Text), string.lower(SearchBar.Text)) then
+                    child.Visible = true
+                else
+                    child.Visible = false
+                end
+            end
+        end
+    end)
+
+    return ScreenGui, ScrollingFrame
+end
+
+local function addElementToGui(scrollingFrame, element, textColor)
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Parent = scrollingFrame
+    TextLabel.Size = UDim2.new(1, -10, 0, 20)
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.TextColor3 = textColor or Color3.new(1, 1, 1)
+    TextLabel.Text = element
+    TextLabel.TextScaled = true
+    TextLabel.TextWrapped = true
+    TextLabel.ZIndex = 10
+
+    local fonts = Enum.Font:GetEnumItems()
+    for _, font in ipairs(fonts) do
+        if font.Name == "Arcade" then
+            TextLabel.Font = Enum.Font.Arcade
+            break
+        end
+    end
+end
+
+local function initialize()
+    if _G.Toggle then
+        if not guiInstance then
+            guiInstance, scrollingFrame = createGui()
+        end
+        spawn(function()
+            while _G.Toggle do
+                clickAtPosition(950 / Camera.ViewportSize.X, 673 / Camera.ViewportSize.Y)
+                wait(0.1)
+                
+                local rolledElement, textColor = checkSpinner()
+                if rolledElement ~= "" and rolledElement ~= lastRolledElement then
+                    lastRolledElement = rolledElement
+                    print("Rolled Element: " .. rolledElement)
+                    addElementToGui(scrollingFrame, rolledElement, textColor)
+                    table.insert(rolledElements, rolledElement)
+
+                    if isWhitelisted(rolledElement) then
+                        _G.Toggle = false
+                    end
+                end
+            end
+        end)
+    elseif guiInstance then
+        guiInstance:Destroy()
+        guiInstance = nil
+        scrollingFrame = nil
+    end
+end
+
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F1 then
+        if guiInstance then
+            guiInstance:Destroy()
+            guiInstance = nil
+            scrollingFrame = nil
+        end
+    end
+end)
+
+initialize()
